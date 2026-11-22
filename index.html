@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>EV Taxi Pro — Учет смен и аренды</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #070b14;
+      --bg-surface: #0f172a;
+      --bg-surface-2: #162036;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.25);
+      --amber: #f59e0b;
+      --cyan: #06b6d4;
+      --blue: #3b82f6;
+      --purple: #8b5cf6;
+      --rose: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-base);
+      background-image:
+        radial-gradient(circle at 12% 0%, rgba(16, 185, 129, 0.13), transparent 42%),
+        radial-gradient(circle at 88% 8%, rgba(245, 158, 11, 0.09), transparent 42%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding-bottom: 96px;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .glass-card {
+      background: linear-gradient(165deg, rgba(15, 23, 42, 0.96), rgba(11, 17, 32, 0.98));
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .hero-card {
+      background: linear-gradient(155deg, #111c33 0%, #0b1222 100%);
+      border: 1px solid rgba(16, 185, 129, 0.26);
+    }
+
+    .bar-track {
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 999px;
+      height: 12px;
+      overflow: hidden;
+    }
+
+    .bar-fill-rent {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--amber), #fbbf24);
+      transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .bar-fill-rent.done {
+      background: linear-gradient(90deg, var(--cyan), var(--emerald));
+    }
+
+    .bar-fill-goal {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--blue), var(--emerald));
+      transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .input-dark {
+      background: #070b14;
+      border: 1px solid var(--border-strong);
+      color: var(--text-main);
+      border-radius: 12px;
+      padding: 11px 13px;
+      font-size: 15px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-dark:focus {
+      border-color: var(--emerald);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 6, 14, 0.78);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 60;
+      padding: 12px;
+    }
+
+    @media (min-width: 640px) {
+      .modal-backdrop {
+        align-items: center;
+      }
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-panel {
+      background: #0f172a;
+      border: 1px solid var(--border-strong);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 500px;
+      padding: 20px;
+      max-height: 92vh;
+      overflow-y: auto;
+      animation: popUp 0.22s ease;
+    }
+
+    @keyframes popUp {
+      from { transform: translateY(18px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-90px);
+      background: #132038;
+      color: #f8fafc;
+      border: 1px solid var(--emerald);
+      padding: 10px 18px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 100;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Message -->
+  <div id="toast" class="toast">Сохранено</div>
+
+  <!-- Hidden JSON File Input for Backup Import -->
+  <input type="file" id="importJsonInput" accept=".json,application/json" class="hidden" onchange="handleImportJSON(event)" />
+
+  <div class="max-w-2xl mx-auto px-4 pt-4">
+    <!-- Top Header -->
+    <header class="flex items-center justify-between gap-3 mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-slate-950 font-extrabold text-xl shadow-lg shadow-emerald-500/20 shrink-0">
+          ⚡
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-extrabold tracking-tight">EV Taxi Tracker</h1>
+            <span id="headerRateBadge" class="mono text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              2.0 ₴/км
+            </span>
+          </div>
+          <div class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+            <span>Неделя:</span>
+            <span id="currentWeekRangeLabel" class="mono text-slate-200 font-semibold">—</span>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="openSettingsModal()" class="h-10 px-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-sm font-semibold flex items-center gap-2 transition active:scale-95">
+        <span>⚙️</span>
+        <span class="hidden sm:inline">Параметры</span>
+      </button>
+    </header>
+
+    <!-- Auto-Rollover Notification Banner (shown if week auto-archived on Monday) -->
+    <div id="rolloverBanner" class="hidden mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-cyan-500/15 border border-emerald-500/35 flex items-center justify-between gap-3 text-xs sm:text-sm">
+      <div>
+        <div class="font-bold text-emerald-300">🔄 Началась новая рабочая неделя!</div>
+        <div class="text-slate-300 mt-0.5">Прошлая неделя автоматически сохранена в архив.</div>
+      </div>
+      <button onclick="dismissRolloverBanner()" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 font-semibold shrink-0">
+        Ок
+      </button>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-slate-900/90 border border-white/10 mb-4">
+      <button class="tab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition bg-slate-800 text-white shadow" data-tab="dashboard" onclick="switchTab('dashboard')">
+        Дашборд
+      </button>
+      <button class="tab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white" data-tab="shifts" onclick="switchTab('shifts')">
+        Смены (<span id="tabShiftCount" class="mono">0</span>)
+      </button>
+      <button class="tab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white" data-tab="archive" onclick="switchTab('archive')">
+        Архив (<span id="tabArchiveCount" class="mono">0</span>)
+      </button>
+    </nav>
+
+    <!-- ==================== TAB 1: DASHBOARD ==================== -->
+    <section id="view-dashboard" class="space-y-4">
+
+      <!-- Hero Card: Two-Stage Progress & Pace -->
+      <div class="glass-card hero-card p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div id="heroEyebrow" class="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              До закрытия аренды и цели осталось
+            </div>
+            <div id="heroMainAmount" class="mono text-3xl sm:text-4xl font-extrabold tracking-tight mt-1 text-white">
+              15 000 ₴
+            </div>
+          </div>
+
+          <div class="text-right">
+            <span id="rentStatusPill" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              ⏳ Аренда в процессе
+            </span>
+          </div>
+        </div>
+
+        <!-- Smart Daily Pace Indicator -->
+        <div id="dailyPaceBox" class="mt-3.5 p-3 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-2 text-xs sm:text-sm">
+          <div class="text-slate-300" id="dailyPaceText">
+            Осталось <strong class="text-white">7 дн.</strong> — нужно по <strong class="mono text-emerald-400">2 143 ₴</strong> чистыми/день
+          </div>
+          <span class="mono text-[11px] text-slate-400 shrink-0" id="weekProgressPct">0%</span>
+        </div>
+
+        <!-- Two-Stage Progress Bars -->
+        <div class="mt-4 pt-4 border-t border-white/10 space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <!-- Stage 1: Rent -->
+            <div>
+              <div class="flex justify-between text-[11px] font-semibold mb-1.5">
+                <span class="text-amber-300">1. Аренда</span>
+                <span class="mono text-slate-300" id="rentRatioText">0 / 7 000 ₴</span>
+              </div>
+              <div class="bar-track">
+                <div id="rentProgressBar" class="bar-fill-rent" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Stage 2: Personal Goal -->
+            <div>
+              <div class="flex justify-between text-[11px] font-semibold mb-1.5">
+                <span class="text-emerald-400">2. Личная цель</span>
+                <span class="mono text-slate-300" id="goalRatioText">0 / 8 000 ₴</span>
+              </div>
+              <div class="bar-track">
+                <div id="goalProgressBar" class="bar-fill-goal" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5 pt-1 text-xs">
+            <div class="p-2.5 rounded-xl bg-slate-950/60 border border-white/5">
+              <div class="text-slate-400 text-[11px]">Статус аренды (<span id="rentSettingLabel" class="mono">7 000 ₴</span>)</div>
+              <div id="rentSubStatus" class="mono font-bold text-amber-300 mt-0.5">Осталось 7 000 ₴</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-950/60 border border-white/5">
+              <div class="text-slate-400 text-[11px]">Личный профит (цель <span id="goalSettingLabel" class="mono">8 000 ₴</span>)</div>
+              <div id="goalSubStatus" class="mono font-bold text-slate-200 mt-0.5">0 ₴ сверх аренды</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Key Metrics Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <!-- Card 1: Net on hand after rent -->
+        <div id="netHandCard" class="glass-card p-3.5 border-emerald-500/25">
+          <div class="text-[11px] font-medium text-slate-400">Чистыми на руки</div>
+          <div id="metricNetAfterRent" class="mono text-lg sm:text-xl font-extrabold text-rose-400 mt-1">-7 000 ₴</div>
+          <div class="text-[11px] text-slate-500 mt-0.5">после аренды</div>
+        </div>
+
+        <!-- Card 2: Operational profit before rent -->
+        <div class="glass-card p-3.5">
+          <div class="text-[11px] font-medium text-slate-400">До вычета аренды</div>
+          <div id="metricOperational" class="mono text-lg sm:text-xl font-extrabold text-white mt-1">0 ₴</div>
+          <div id="metricGrossSub" class="mono text-[11px] text-slate-500 mt-0.5">касса 0 ₴</div>
+        </div>
+
+        <!-- Card 3: Charging cost & km -->
+        <div class="glass-card p-3.5">
+          <div class="text-[11px] font-medium text-slate-400">Расход зарядки</div>
+          <div id="metricChargeTotal" class="mono text-lg sm:text-xl font-extrabold text-cyan-400 mt-1">0 ₴</div>
+          <div id="metricKmTotal" class="mono text-[11px] text-slate-500 mt-0.5">0 км пробега</div>
+        </div>
+
+        <!-- Card 4: Average net per 1 km -->
+        <div class="glass-card p-3.5">
+          <div class="text-[11px] font-medium text-slate-400">Доход с 1 км</div>
+          <div id="metricPerKm" class="mono text-lg sm:text-xl font-extrabold text-amber-300 mt-1">0.0 ₴/км</div>
+          <div id="metricFeesSub" class="mono text-[11px] text-slate-500 mt-0.5">ком+мойка: 0 ₴</div>
+        </div>
+      </div>
+
+      <!-- Daily Bar Chart (Mon - Sun) with Target Pace Line -->
+      <div class="glass-card p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h2 class="text-sm sm:text-base font-bold">Выработка по дням (Пн–Вс)</h2>
+            <p class="text-[11px] text-slate-400">Сравнение чистой выручки за смену с дневной нормой</p>
+          </div>
+          <div class="flex items-center gap-3 text-[11px] text-slate-400">
+            <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block"></i>Чистыми</span>
+            <span class="flex items-center gap-1"><i class="w-3 border-t-2 border-dashed border-amber-400 inline-block"></i>Норма/день</span>
+          </div>
+        </div>
+
+        <div class="relative pt-4">
+          <!-- Target Pace Dashed Reference Line -->
+          <div id="chartTargetLine" class="absolute left-0 right-0 border-t border-dashed border-amber-400/70 pointer-events-none z-10 flex justify-end transition-all duration-300" style="bottom: 50px;">
+            <span id="chartTargetBadge" class="mono text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.2 rounded -mt-4">
+              норма 2 143 ₴
+            </span>
+          </div>
+
+          <!-- 7 Columns -->
+          <div id="weeklyBarChart" class="grid grid-cols-7 gap-2 items-end h-40"></div>
+        </div>
+      </div>
+
+      <!-- Quick Controls & Backup Card -->
+      <div class="glass-card p-4 sm:p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold">Отчетность и сохранность данных</h3>
+          <span class="text-[11px] text-slate-400">Автосохранение в браузере</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <button onclick="copyWeeklyReport()" class="py-3 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-white/10 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-95">
+            <span>📋</span>
+            <span>Скопировать отчет</span>
+          </button>
+          <button onclick="manualCloseWeek()" class="py-3 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-200 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-95">
+            <span>🏁</span>
+            <span>Завершить неделю</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5 pt-1">
+          <button onclick="exportBackupJSON()" class="py-2.5 px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-semibold text-slate-300 flex items-center justify-center gap-1.5 transition">
+            <span>⬇️</span>
+            <span>Экспорт бэкапа (JSON)</span>
+          </button>
+          <button onclick="triggerImportJSON()" class="py-2.5 px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-semibold text-slate-300 flex items-center justify-center gap-1.5 transition">
+            <span>⬆️</span>
+            <span>Импорт бэкапа (JSON)</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: SHIFTS LIST ==================== -->
+    <section id="view-shifts" class="hidden space-y-4">
+      <div class="glass-card p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-base font-bold">Смены текущей недели</h2>
+            <p id="shiftsWeekSubtitle" class="text-xs text-slate-400">Все записи автоматически учитываются в прогрессе</p>
+          </div>
+          <button onclick="openShiftModal()" class="px-3 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/25">
+            + Смена
+          </button>
+        </div>
+
+        <div id="shiftsListContainer" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: ARCHIVE ==================== -->
+    <section id="view-archive" class="hidden space-y-4">
+      <!-- All-Time Summary Card -->
+      <div class="glass-card p-4 sm:p-5 border-emerald-500/20">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Итого за все закрытые недели</div>
+        <div class="grid grid-cols-3 gap-2.5">
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-white/5">
+            <div class="text-[11px] text-slate-400">Чистый профит</div>
+            <div id="archiveTotalNet" class="mono text-base sm:text-lg font-extrabold text-emerald-400 mt-0.5">0 ₴</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-white/5">
+            <div class="text-[11px] text-slate-400">Касса всего</div>
+            <div id="archiveTotalGross" class="mono text-base sm:text-lg font-extrabold text-white mt-0.5">0 ₴</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-white/5">
+            <div class="text-[11px] text-slate-400">Общий пробег</div>
+            <div id="archiveTotalKm" class="mono text-base sm:text-lg font-extrabold text-cyan-400 mt-0.5">0 км</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Archived Weeks List -->
+      <div class="glass-card p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-bold">История недель</h2>
+          <span class="text-[11px] text-slate-400">Авто-архив каждый Пн</span>
+        </div>
+        <div id="archiveListContainer" class="space-y-3"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Fixed Bottom Dock Button -->
+  <div class="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/90 backdrop-blur-md border-t border-white/10 p-3">
+    <div class="max-w-2xl mx-auto">
+      <button onclick="openShiftModal()" class="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-base shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition active:scale-[0.98]">
+        <span class="text-xl leading-none">+</span>
+        <span>Добавить смену</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ADD / EDIT SHIFT ==================== -->
+  <div id="shiftModal" class="modal-backdrop">
+    <div class="modal-panel">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="shiftModalHeading" class="text-lg font-extrabold">Новая смена</h3>
+        <button onclick="closeShiftModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-lg">×</button>
+      </div>
+
+      <form id="shiftForm" onsubmit="handleSaveShift(event)" class="space-y-3.5">
+        <input type="hidden" id="editShiftId" value="" />
+
+        <!-- Date & Day of Week -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="inputShiftDate" class="block text-xs font-semibold text-slate-400 mb-1.5">Дата смены</label>
+            <input type="date" id="inputShiftDate" class="input-dark mono text-sm" required onchange="syncDaySelectorFromDate()" />
+          </div>
+          <div>
+            <label for="inputShiftDay" class="block text-xs font-semibold text-slate-400 mb-1.5">День недели</label>
+            <select id="inputShiftDay" class="input-dark text-sm">
+              <option value="0">Понедельник (Пн)</option>
+              <option value="1">Вторник (Вт)</option>
+              <option value="2">Среда (Ср)</option>
+              <option value="3">Четверг (Чт)</option>
+              <option value="4">Пятница (Пт)</option>
+              <option value="5">Суббота (Сб)</option>
+              <option value="6">Воскресенье (Вс)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Gross & Mileage -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="inputShiftGross" class="block text-xs font-semibold text-slate-400 mb-1.5">Грязная касса (₴)</label>
+            <input type="number" id="inputShiftGross" inputmode="decimal" min="0" step="1" placeholder="3200" class="input-dark mono font-bold" required oninput="recalculateCommissionIfPercent(); updateLiveShiftPreview();" />
+          </div>
+          <div>
+            <label for="inputShiftKm" class="block text-xs font-semibold text-slate-400 mb-1.5">Пробег за смену (км)</label>
+            <input type="number" id="inputShiftKm" inputmode="decimal" min="0" step="1" placeholder="210" class="input-dark mono font-bold" required oninput="updateLiveShiftPreview()" />
+          </div>
+        </div>
+
+        <!-- Instant Auto-Charge Calculation Badge + Optional Fast Charger Extra -->
+        <div class="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/25 space-y-2.5">
+          <div class="flex items-center justify-between text-xs sm:text-sm">
+            <span class="text-cyan-200 font-medium">
+              ⚡ Домашняя зарядка (<span id="modalRateDisplay" class="mono font-bold">2.0</span> ₴/км):
+            </span>
+            <span id="modalAutoChargeBadge" class="mono font-extrabold text-cyan-300 text-sm">= 0 ₴</span>
+          </div>
+
+          <div class="flex items-center justify-between gap-3 pt-2 border-t border-cyan-500/20">
+            <label for="inputFastChargeExtra" class="text-xs text-slate-300">Доплата за быструю ЭЗС в пути (₴):</label>
+            <input type="number" id="inputFastChargeExtra" inputmode="decimal" min="0" step="1" value="0" placeholder="0" class="input-dark mono text-right !w-28 !py-1.5 !px-2.5 text-sm" oninput="updateLiveShiftPreview()" />
+          </div>
+        </div>
+
+        <!-- Commission (Quick % Buttons + Manual UAH or %) & Wash/Misc -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label for="inputShiftComm" class="text-xs font-semibold text-slate-400">Комиссия агрегатора</label>
+              <button type="button" id="commUnitToggle" onclick="toggleCommissionUnit()" class="mono text-[11px] font-bold px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-amber-500/30">
+                в ₴
+              </button>
+            </div>
+            <input type="number" id="inputShiftComm" inputmode="decimal" min="0" step="0.1" value="0" placeholder="0" class="input-dark mono" oninput="updateLiveShiftPreview()" />
+            <div class="flex gap-1.5 mt-1.5">
+              <button type="button" onclick="setQuickCommissionPct(15)" class="flex-1 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-white/5">15%</button>
+              <button type="button" onclick="setQuickCommissionPct(18)" class="flex-1 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-white/5">18%</button>
+              <button type="button" onclick="setQuickCommissionPct(20)" class="flex-1 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-white/5">20%</button>
+            </div>
+          </div>
+
+          <div>
+            <label for="inputShiftMisc" class="block text-xs font-semibold text-slate-400 mb-1.5">Мойка / мелочи (₴)</label>
+            <input type="number" id="inputShiftMisc" inputmode="decimal" min="0" step="1" value="0" placeholder="0" class="input-dark mono" oninput="updateLiveShiftPreview()" />
+            <div class="flex gap-1.5 mt-1.5">
+              <button type="button" onclick="addMiscQuick(100)" class="flex-1 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-white/5">+100</button>
+              <button type="button" onclick="addMiscQuick(150)" class="flex-1 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-white/5">+150</button>
+              <button type="button" onclick="document.getElementById('inputShiftMisc').value=0; updateLiveShiftPreview();" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-400 border border-white/5">0</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Optional Note -->
+        <div>
+          <label for="inputShiftNote" class="block text-xs font-semibold text-slate-400 mb-1.5">Комментарий (необязательно)</label>
+          <input type="text" id="inputShiftNote" placeholder="Uklon + Bolt, вечерние пики..." class="input-dark text-sm" />
+        </div>
+
+        <!-- Live Shift Result Preview -->
+        <div class="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/10 border border-emerald-500/35 flex items-center justify-between">
+          <div>
+            <div class="text-[11px] font-semibold text-slate-300">Чистый результат смены:</div>
+            <div id="previewShiftNet" class="mono text-2xl font-extrabold text-emerald-400 mt-0.5">+0 ₴</div>
+          </div>
+          <div class="text-right">
+            <div class="text-[11px] font-semibold text-slate-300">Чистыми с 1 км:</div>
+            <div id="previewShiftPerKm" class="mono text-base font-extrabold text-white mt-0.5">0.0 ₴/км</div>
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-base shadow-lg shadow-emerald-500/20 transition active:scale-[0.98]">
+          Сохранить смену
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: SETTINGS ==================== -->
+  <div id="settingsModal" class="modal-backdrop">
+    <div class="modal-panel">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-extrabold">Параметры расчетов</h3>
+        <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-lg">×</button>
+      </div>
+
+      <form onsubmit="handleSaveSettings(event)" class="space-y-4">
+        <div>
+          <label for="settingRent" class="block text-xs font-semibold text-slate-400 mb-1.5">Недельная аренда автомобиля (₴)</label>
+          <input type="number" id="settingRent" inputmode="decimal" min="0" step="50" required class="input-dark mono font-bold" />
+        </div>
+
+        <div>
+          <label for="settingGoal" class="block text-xs font-semibold text-slate-400 mb-1.5">Личная цель чистого заработка за неделю (₴)</label>
+          <input type="number" id="settingGoal" inputmode="decimal" min="0" step="100" required class="input-dark mono font-bold" />
+        </div>
+
+        <div>
+          <label for="settingChargeRate" class="block text-xs font-semibold text-slate-400 mb-1.5">Стоимость домашней зарядки (₴ за 1 км)</label>
+          <input type="number" id="settingChargeRate" inputmode="decimal" min="0" step="0.1" required class="input-dark mono font-bold" />
+        </div>
+
+        <button type="submit" class="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-base transition">
+          Сохранить параметры
+        </button>
+
+        <div class="pt-3 border-t border-white/10 flex items-center justify-between gap-2">
+          <span class="text-xs text-slate-400">Очистить смены текущей недели:</span>
+          <button type="button" onclick="confirmClearCurrentWeek()" class="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold">
+            Сбросить неделю
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ARCHIVE WEEK DETAILS / RESTORE ==================== -->
+  <div id="archiveDetailModal" class="modal-backdrop">
+    <div class="modal-panel">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h3 class="text-lg font-extrabold">Детали недели</h3>
+          <p id="archiveDetailRange" class="mono text-xs text-slate-400">—</p>
+        </div>
+        <button onclick="closeArchiveDetailModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-lg">×</button>
+      </div>
+
+      <div id="archiveDetailBody" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'ev_taxi_pro_state_v2';
+    const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+    let commInputMode = 'uah'; // 'uah' | 'pct'
+    let activePctValue = 0;
+
+    // --- Calendar Week Utilities (Monday 00:00 to Sunday 23:59) ---
+    function getMondayOfDate(dateObj) {
+      const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+      const day = d.getDay(); // 0 (Sun) .. 6 (Sat)
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setDate(d.getDate() + diff);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    function toISODate(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatWeekRangeLabel(mondayISO) {
+      const mon = new Date(mondayISO + 'T00:00:00');
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      const d1 = `${String(mon.getDate()).padStart(2, '0')} ${MONTHS_SHORT[mon.getMonth()]}`;
+      const d2 = `${String(sun.getDate()).padStart(2, '0')} ${MONTHS_SHORT[sun.getMonth()]}`;
+      return `${d1} – ${d2}`;
+    }
+
+    function getCurrentWeekStartISO() {
+      return toISODate(getMondayOfDate(new Date()));
+    }
+
+    // --- State Initialization & Automatic Monday Week Rollover ---
+    function getDefaultState() {
+      return {
+        settings: {
+          weeklyRent: 7000,
+          personalGoal: 8000,
+          chargePerKm: 2.0
+        },
+        currentWeekStart: getCurrentWeekStartISO(),
+        shifts: [],
+        archive: [],
+        justRolledOver: false
+      };
+    }
+
+    function loadAndCheckWeekState() {
+      let data;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        data = raw ? JSON.parse(raw) : getDefaultState();
+      } catch (err) {
+        data = getDefaultState();
+      }
+
+      // Ensure structure integrity
+      if (!data.settings) data.settings = { weeklyRent: 7000, personalGoal: 8000, chargePerKm: 2.0 };
+      if (typeof data.settings.weeklyRent !== 'number') data.settings.weeklyRent = 7000;
+      if (typeof data.settings.personalGoal !== 'number') data.settings.personalGoal = 8000;
+      if (typeof data.settings.chargePerKm !== 'number') data.settings.chargePerKm = 2.0;
+      if (!Array.isArray(data.shifts)) data.shifts = [];
+      if (!Array.isArray(data.archive)) data.archive = [];
+
+      const actualWeekStart = getCurrentWeekStartISO();
+      if (!data.currentWeekStart) {
+        data.currentWeekStart = actualWeekStart;
+      }
+
+      // Automatic Monday Rollover: if stored week is older than current calendar week
+      if (data.currentWeekStart < actualWeekStart) {
+        if (data.shifts.length > 0) {
+          const archivedRecord = buildArchiveSummary(data.currentWeekStart, data.shifts, data.settings, true);
+          data.archive.unshift(archivedRecord);
+          data.justRolledOver = true;
+        }
+        data.shifts = [];
+        data.currentWeekStart = actualWeekStart;
+      }
+
+      saveState(data);
+      return data;
+    }
+
+    function saveState(data = state) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function buildArchiveSummary(weekStartISO, shiftsArr, settingsObj, isAuto = false) {
+      const rate = settingsObj.chargePerKm;
+      const rent = settingsObj.weeklyRent;
+      let gross = 0, km = 0, homeCharge = 0, fastCharge = 0, fees = 0;
+
+      shiftsArr.forEach(s => {
+        gross += Number(s.gross) || 0;
+        km += Number(s.km) || 0;
+        homeCharge += (Number(s.km) || 0) * rate;
+        fastCharge += Number(s.fastChargeExtra) || 0;
+        fees += (Number(s.commissionUah) || 0) + (Number(s.misc) || 0);
+      });
+
+      const totalCharge = homeCharge + fastCharge;
+      const operationalNet = gross - totalCharge - fees;
+      const netAfterRent = operationalNet - rent;
+
+      return {
+        id: 'arch-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        weekStart: weekStartISO,
+        weekLabel: formatWeekRangeLabel(weekStartISO),
+        closedAt: toISODate(new Date()),
+        autoClosed: isAuto,
+        shiftsCount: shiftsArr.length,
+        gross,
+        km,
+        totalCharge,
+        fees,
+        rent,
+        operationalNet,
+        netAfterRent,
+        shiftsSnapshot: JSON.parse(JSON.stringify(shiftsArr))
+      };
+    }
+
+    let state = loadAndCheckWeekState();
+
+    // --- Formatting Helpers ---
+    function fmtMoney(val) {
+      const rounded = Math.round(val);
+      const sign = rounded < 0 ? '-' : '';
+      const absStr = Math.abs(rounded).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+      return `${sign}${absStr} ₴`;
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    function dismissRolloverBanner() {
+      state.justRolledOver = false;
+      saveState();
+      document.getElementById('rolloverBanner').classList.add('hidden');
+    }
+
+    // --- Navigation Tabs ---
+    function switchTab(tab) {
+      ['dashboard', 'shifts', 'archive'].forEach(name => {
+        document.getElementById('view-' + name).classList.toggle('hidden', name !== tab);
+      });
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const active = btn.dataset.tab === tab;
+        btn.className = active
+          ? 'tab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition bg-slate-800 text-white shadow'
+          : 'tab-btn py-2.5 px-2 rounded-xl text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white';
+      });
+    }
+
+    // --- Main Dashboard & UI Renderer ---
+    function renderAll() {
+      // Check rollover dynamically in case app stayed open past midnight Sunday
+      const actualWeek = getCurrentWeekStartISO();
+      if (state.currentWeekStart < actualWeek) {
+        state = loadAndCheckWeekState();
+      }
+
+      const { weeklyRent, personalGoal, chargePerKm } = state.settings;
+
+      // Header & Rollover banner
+      document.getElementById('headerRateBadge').textContent = `${chargePerKm.toFixed(1)} ₴/км`;
+      document.getElementById('currentWeekRangeLabel').textContent = formatWeekRangeLabel(state.currentWeekStart);
+      document.getElementById('shiftsWeekSubtitle').textContent = `Неделя ${formatWeekRangeLabel(state.currentWeekStart)}`;
+      document.getElementById('rolloverBanner').classList.toggle('hidden', !state.justRolledOver);
+
+      // Aggregate Current Week Shifts
+      let totalGross = 0;
+      let totalKm = 0;
+      let totalHomeCharge = 0;
+      let totalFastCharge = 0;
+      let totalFees = 0;
+
+      const dailyNetArr = [0, 0, 0, 0, 0, 0, 0];
+
+      state.shifts.forEach(s => {
+        const gross = Number(s.gross) || 0;
+        const km = Number(s.km) || 0;
+        const homeCharge = km * chargePerKm;
+        const fastCharge = Number(s.fastChargeExtra) || 0;
+        const fees = (Number(s.commissionUah) || 0) + (Number(s.misc) || 0);
+        const shiftNet = gross - homeCharge - fastCharge - fees;
+
+        totalGross += gross;
+        totalKm += km;
+        totalHomeCharge += homeCharge;
+        totalFastCharge += fastCharge;
+        totalFees += fees;
+
+        if (s.dayIndex >= 0 && s.dayIndex < 7) {
+          dailyNetArr[s.dayIndex] += shiftNet;
+        }
+      });
+
+      const totalCharge = totalHomeCharge + totalFastCharge;
+      const operationalProfit = totalGross - totalCharge - totalFees; // Earned before rent
+      const netAfterRent = operationalProfit - weeklyRent; // Net in pocket after rent
+      const totalWeeklyTarget = weeklyRent + personalGoal;
+      const remainingToFullTarget = totalWeeklyTarget - operationalProfit;
+
+      // Days remaining in current week (including today through Sunday)
+      const nowJsDay = new Date().getDay();
+      const todayIndex = nowJsDay === 0 ? 6 : nowJsDay - 1; // 0 = Mon .. 6 = Sun
+      const daysLeftInclusive = 7 - todayIndex; // 7 on Mon, 1 on Sun
+      const dailyRequiredPace = remainingToFullTarget > 0 ? Math.ceil(remainingToFullTarget / daysLeftInclusive) : 0;
+
+      // Hero Block
+      const heroEyebrow = document.getElementById('heroEyebrow');
+      const heroMainAmount = document.getElementById('heroMainAmount');
+      const rentStatusPill = document.getElementById('rentStatusPill');
+      const dailyPaceText = document.getElementById('dailyPaceText');
+      const weekProgressPct = document.getElementById('weekProgressPct');
+
+      const overallPct = totalWeeklyTarget > 0
+        ? Math.min(100, Math.max(0, Math.round((operationalProfit / totalWeeklyTarget) * 100)))
+        : 100;
+      weekProgressPct.textContent = `${overallPct}%`;
+
+      if (remainingToFullTarget <= 0) {
+        const bonus = Math.abs(remainingToFullTarget);
+        heroEyebrow.textContent = 'Недельный план полностью закрыт!';
+        heroMainAmount.textContent = `+${fmtMoney(bonus)} сверх цели`;
+        heroMainAmount.className = 'mono text-2xl sm:text-4xl font-extrabold tracking-tight mt-1 text-emerald-400';
+        dailyPaceText.innerHTML = `🔥 Аренда <strong class="text-white">${fmtMoney(weeklyRent)}</strong> и цель <strong class="text-emerald-400">${fmtMoney(personalGoal)}</strong> выполнены!`;
+      } else {
+        heroEyebrow.textContent = 'До закрытия аренды и цели осталось';
+        heroMainAmount.textContent = fmtMoney(remainingToFullTarget);
+        heroMainAmount.className = 'mono text-3xl sm:text-4xl font-extrabold tracking-tight mt-1 text-white';
+        dailyPaceText.innerHTML = `Осталось <strong class="text-white">${daysLeftInclusive} дн.</strong> — нужно по <strong class="mono text-emerald-400">${fmtMoney(dailyRequiredPace)}</strong> чистыми/день`;
+      }
+
+      // Stage 1: Rent Payback
+      const rentCovered = Math.max(0, Math.min(weeklyRent, operationalProfit));
+      const rentPct = weeklyRent > 0 ? (rentCovered / weeklyRent) * 100 : 100;
+      const rentLeft = Math.max(0, weeklyRent - operationalProfit);
+
+      document.getElementById('rentSettingLabel').textContent = fmtMoney(weeklyRent);
+      document.getElementById('goalSettingLabel').textContent = fmtMoney(personalGoal);
+      document.getElementById('rentRatioText').textContent = `${fmtMoney(rentCovered)} / ${fmtMoney(weeklyRent)}`;
+
+      const rentBar = document.getElementById('rentProgressBar');
+      rentBar.style.width = `${rentPct}%`;
+      rentBar.classList.toggle('done', rentPct >= 100);
+
+      if (operationalProfit >= weeklyRent) {
+        rentStatusPill.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+        rentStatusPill.textContent = '✅ Аренда закрыта';
+        document.getElementById('rentSubStatus').className = 'mono font-bold text-emerald-400 mt-0.5';
+        document.getElementById('rentSubStatus').textContent = 'Аренда закрыта';
+      } else {
+        rentStatusPill.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+        rentStatusPill.textContent = `⏳ До аренды: ${fmtMoney(rentLeft)}`;
+        document.getElementById('rentSubStatus').className = 'mono font-bold text-amber-300 mt-0.5';
+        document.getElementById('rentSubStatus').textContent = `Осталось ${fmtMoney(rentLeft)}`;
+      }
+
+      // Stage 2: Personal Goal Over Rent
+      const personalEarned = Math.max(0, operationalProfit - weeklyRent);
+      const goalPct = personalGoal > 0 ? Math.min(100, (personalEarned / personalGoal) * 100) : 100;
+      document.getElementById('goalRatioText').textContent = `${fmtMoney(personalEarned)} / ${fmtMoney(personalGoal)}`;
+      document.getElementById('goalProgressBar').style.width = `${goalPct}%`;
+      document.getElementById('goalSubStatus').textContent = `${fmtMoney(personalEarned)} сверх аренды`;
+
+      // 4 Key Metric Cards
+      const netHandEl = document.getElementById('metricNetAfterRent');
+      const netHandCard = document.getElementById('netHandCard');
+      netHandEl.textContent = (netAfterRent > 0 ? '+' : '') + fmtMoney(netAfterRent);
+      netHandEl.className = netAfterRent >= 0
+        ? 'mono text-lg sm:text-xl font-extrabold text-emerald-400 mt-1'
+        : 'mono text-lg sm:text-xl font-extrabold text-rose-400 mt-1';
+      netHandCard.style.borderColor = netAfterRent >= 0 ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.3)';
+
+      document.getElementById('metricOperational').textContent = fmtMoney(operationalProfit);
+      document.getElementById('metricGrossSub').textContent = `касса ${fmtMoney(totalGross)}`;
+
+      document.getElementById('metricChargeTotal').textContent = fmtMoney(totalCharge);
+      document.getElementById('metricKmTotal').textContent = `${Math.round(totalKm)} км пробега`;
+
+      const avgPerKm = totalKm > 0 ? (operationalProfit / totalKm) : 0;
+      document.getElementById('metricPerKm').textContent = `${avgPerKm.toFixed(1)} ₴/км`;
+      document.getElementById('metricFeesSub').textContent = `ком+мойка: ${fmtMoney(totalFees)}`;
+
+      // Render Bar Chart with Target Pace Line
+      renderWeeklyBarChart(dailyNetArr, dailyRequiredPace, todayIndex);
+
+      // Render Shifts & Archive Lists
+      renderShiftsList();
+      renderArchiveList();
+
+      document.getElementById('tabShiftCount').textContent = state.shifts.length;
+      document.getElementById('tabArchiveCount').textContent = state.archive.length;
+    }
+
+    function renderWeeklyBarChart(dailyNetArr, targetPace, todayIndex) {
+      const container = document.getElementById('weeklyBarChart');
+      const maxVal = Math.max(2500, targetPace * 1.25, ...dailyNetArr.map(v => Math.max(0, v)));
+
+      // Position target dashed reference line inside 128px bar area (+22px bottom label offset)
+      const barAreaHeight = 112;
+      const lineBottomPx = targetPace > 0
+        ? Math.min(barAreaHeight + 18, Math.max(24, Math.round((targetPace / maxVal) * barAreaHeight) + 22))
+        : 22;
+
+      const targetLineEl = document.getElementById('chartTargetLine');
+      targetLineEl.style.bottom = `${lineBottomPx}px`;
+      targetLineEl.classList.toggle('hidden', targetPace <= 0);
+      document.getElementById('chartTargetBadge').textContent = `норма ${fmtMoney(targetPace)}`;
+
+      container.innerHTML = dailyNetArr.map((val, idx) => {
+        const cleanVal = Math.max(0, val);
+        const heightPct = maxVal > 0 ? Math.min(100, Math.round((cleanVal / maxVal) * 100)) : 0;
+        const meetsPace = targetPace > 0 && cleanVal >= targetPace;
+        const isToday = idx === todayIndex;
+
+        const barColorClass = cleanVal === 0
+          ? 'bg-white/5'
+          : meetsPace
+            ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-sm shadow-emerald-500/30'
+            : 'bg-gradient-to-t from-cyan-600 to-cyan-400';
+
+        const shortValLabel = cleanVal > 0 ? `${(cleanVal / 1000).toFixed(1)}к` : '';
+
+        return `
+          <div class="flex flex-col items-center justify-end h-full gap-1.5">
+            <div class="mono text-[10px] font-bold ${meetsPace ? 'text-emerald-400' : 'text-slate-400'} h-3.5">
+              ${shortValLabel}
+            </div>
+            <div class="w-full max-w-[36px] h-[112px] rounded-xl bg-white/[0.03] border border-white/5 flex items-end overflow-hidden p-0.5">
+              <div class="w-full rounded-lg transition-all duration-500 ${barColorClass}" style="height: ${Math.max(cleanVal > 0 ? 6 : 0, heightPct)}%;"></div>
+            </div>
+            <div class="text-xs font-bold ${isToday ? 'text-emerald-400 underline decoration-2 underline-offset-4' : 'text-slate-400'}">
+              ${DAYS_SHORT[idx]}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderShiftsList() {
+      const container = document.getElementById('shiftsListContainer');
+      if (state.shifts.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-10 px-4 text-slate-400 text-sm">
+            На этой неделе пока нет записанных смен.<br>
+            Нажмите <strong class="text-emerald-400">«+ Добавить смену»</strong> после завершения линии.
+          </div>
+        `;
+        return;
+      }
+
+      const rate = state.settings.chargePerKm;
+      const sorted = [...state.shifts].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+      container.innerHTML = sorted.map(s => {
+        const homeCharge = (Number(s.km) || 0) * rate;
+        const fastCharge = Number(s.fastChargeExtra) || 0;
+        const totalCharge = homeCharge + fastCharge;
+        const fees = (Number(s.commissionUah) || 0) + (Number(s.misc) || 0);
+        const net = (Number(s.gross) || 0) - totalCharge - fees;
+        const perKm = s.km > 0 ? (net / s.km).toFixed(1) : '0.0';
+
+        return `
+          <div class="p-3.5 rounded-2xl bg-slate-950/65 border border-white/10 flex items-center justify-between gap-3">
+            <div class="space-y-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-xs font-extrabold">
+                  ${DAYS_SHORT[s.dayIndex] || 'Смена'}
+                </span>
+                <span class="mono text-xs text-slate-400">${s.date}</span>
+                <span class="mono text-xs font-semibold text-slate-200">• Касса ${fmtMoney(s.gross)}</span>
+              </div>
+              <div class="mono text-[11.5px] text-slate-400 flex flex-wrap gap-x-3 gap-y-0.5">
+                <span>🛣 ${s.km} км</span>
+                <span class="text-cyan-400">⚡ -${fmtMoney(totalCharge)}</span>
+                <span class="text-amber-300">🧾 -${fmtMoney(fees)}</span>
+                <span>📈 ${perKm} ₴/км</span>
+              </div>
+              ${s.note ? `<div class="text-xs text-slate-400 italic truncate">${escapeHtml(s.note)}</div>` : ''}
+            </div>
+
+            <div class="text-right shrink-0 flex flex-col items-end gap-1.5">
+              <div class="mono text-base font-extrabold ${net >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
+                ${net >= 0 ? '+' : ''}${fmtMoney(net)}
+              </div>
+              <div class="flex gap-1.5">
+                <button onclick="openShiftModal('${s.id}')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[11px] font-semibold text-slate-300">
+                  Изм.
+                </button>
+                <button onclick="deleteShift('${s.id}')" class="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-[11px] font-semibold text-rose-300">
+                  Удал.
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderArchiveList() {
+      const container = document.getElementById('archiveListContainer');
+
+      let allNet = 0, allGross = 0, allKm = 0;
+      state.archive.forEach(w => {
+        allNet += Number(w.netAfterRent) || 0;
+        allGross += Number(w.gross) || 0;
+        allKm += Number(w.km) || 0;
+      });
+
+      document.getElementById('archiveTotalNet').textContent = (allNet > 0 ? '+' : '') + fmtMoney(allNet);
+      document.getElementById('archiveTotalGross').textContent = fmtMoney(allGross);
+      document.getElementById('archiveTotalKm').textContent = `${Math.round(allKm)} км`;
+
+      if (state.archive.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 px-4 text-slate-400 text-sm">
+            Архив пока пуст. Каждый понедельник прошлая неделя будет автоматически сохраняться сюда.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = state.archive.map(w => `
+        <div class="p-3.5 rounded-2xl bg-slate-950/65 border border-white/10 space-y-2.5">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="mono text-sm font-extrabold text-white">${escapeHtml(w.weekLabel)}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-semibold">
+                  ${w.autoClosed ? 'Авто-закрытие' : 'Закрыта вручную'}
+                </span>
+              </div>
+              <div class="mono text-xs text-slate-400 mt-1">
+                Смен: ${w.shiftsCount} • Пробег: ${Math.round(w.km)} км • Касса: ${fmtMoney(w.gross)}
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="mono text-base font-extrabold ${w.netAfterRent >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
+                ${w.netAfterRent >= 0 ? '+' : ''}${fmtMoney(w.netAfterRent)}
+              </div>
+              <div class="text-[10px] text-slate-400">чистыми после аренды</div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
+            <span class="mono text-slate-400">Аренда: -${fmtMoney(w.rent)} | Зарядка: -${fmtMoney(w.totalCharge)}</span>
+            <button onclick="openArchiveDetail('${w.id}')" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 font-semibold text-slate-200">
+              Открыть / Восстановить
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[ch]));
+    }
+
+    // --- Shift Modal Logic ---
+    function openShiftModal(shiftId = null) {
+      const modal = document.getElementById('shiftModal');
+      document.getElementById('modalRateDisplay').textContent = state.settings.chargePerKm.toFixed(1);
+      commInputMode = 'uah';
+      activePctValue = 0;
+      document.getElementById('commUnitToggle').textContent = 'в ₴';
+
+      if (shiftId) {
+        const s = state.shifts.find(item => item.id === shiftId);
+        if (!s) return;
+        document.getElementById('shiftModalHeading').textContent = 'Редактировать смену';
+        document.getElementById('editShiftId').value = s.id;
+        document.getElementById('inputShiftDate').value = s.date;
+        document.getElementById('inputShiftDay').value = s.dayIndex;
+        document.getElementById('inputShiftGross').value = s.gross;
+        document.getElementById('inputShiftKm').value = s.km;
+        document.getElementById('inputFastChargeExtra').value = s.fastChargeExtra || 0;
+        document.getElementById('inputShiftComm').value = s.commissionUah || 0;
+        document.getElementById('inputShiftMisc').value = s.misc || 0;
+        document.getElementById('inputShiftNote').value = s.note || '';
+      } else {
+        document.getElementById('shiftModalHeading').textContent = 'Новая смена';
+        document.getElementById('editShiftId').value = '';
+        document.getElementById('inputShiftDate').value = toISODate(new Date());
+        syncDaySelectorFromDate();
+        document.getElementById('inputShiftGross').value = '';
+        document.getElementById('inputShiftKm').value = '';
+        document.getElementById('inputFastChargeExtra').value = 0;
+        document.getElementById('inputShiftComm').value = 0;
+        document.getElementById('inputShiftMisc').value = 0;
+        document.getElementById('inputShiftNote').value = '';
+      }
+
+      updateLiveShiftPreview();
+      modal.classList.add('open');
+    }
+
+    function closeShiftModal() {
+      document.getElementById('shiftModal').classList.remove('open');
+    }
+
+    function syncDaySelectorFromDate() {
+      const val = document.getElementById('inputShiftDate').value;
+      if (!val) return;
+      const d = new Date(val + 'T12:00:00');
+      const jsDay = d.getDay();
+      document.getElementById('inputShiftDay').value = jsDay === 0 ? 6 : jsDay - 1;
+    }
+
+    function toggleCommissionUnit() {
+      const gross = parseFloat(document.getElementById('inputShiftGross').value) || 0;
+      const commInput = document.getElementById('inputShiftComm');
+      const currentVal = parseFloat(commInput.value) || 0;
+
+      if (commInputMode === 'uah') {
+        commInputMode = 'pct';
+        document.getElementById('commUnitToggle').textContent = 'в %';
+        const pct = gross > 0 ? Math.round((currentVal / gross) * 1000) / 10 : 15;
+        commInput.value = pct;
+        activePctValue = pct;
+      } else {
+        commInputMode = 'uah';
+        document.getElementById('commUnitToggle').textContent = 'в ₴';
+        const uah = Math.round((gross * currentVal) / 100);
+        commInput.value = uah;
+        activePctValue = 0;
+      }
+      updateLiveShiftPreview();
+    }
+
+    function setQuickCommissionPct(pct) {
+      const gross = parseFloat(document.getElementById('inputShiftGross').value) || 0;
+      activePctValue = pct;
+      if (commInputMode === 'pct') {
+        document.getElementById('inputShiftComm').value = pct;
+      } else {
+        document.getElementById('inputShiftComm').value = Math.round((gross * pct) / 100);
+      }
+      updateLiveShiftPreview();
+    }
+
+    function recalculateCommissionIfPercent() {
+      const gross = parseFloat(document.getElementById('inputShiftGross').value) || 0;
+      if (commInputMode === 'uah' && activePctValue > 0) {
+        document.getElementById('inputShiftComm').value = Math.round((gross * activePctValue) / 100);
+      }
+    }
+
+    function addMiscQuick(amount) {
+      const el = document.getElementById('inputShiftMisc');
+      el.value = (parseFloat(el.value) || 0) + amount;
+      updateLiveShiftPreview();
+    }
+
+    function getResolvedCommissionUah() {
+      const gross = parseFloat(document.getElementById('inputShiftGross').value) || 0;
+      const rawComm = parseFloat(document.getElementById('inputShiftComm').value) || 0;
+      return commInputMode === 'pct' ? Math.round((gross * rawComm) / 100) : rawComm;
+    }
+
+    function updateLiveShiftPreview() {
+      const gross = parseFloat(document.getElementById('inputShiftGross').value) || 0;
+      const km = parseFloat(document.getElementById('inputShiftKm').value) || 0;
+      const fastExtra = parseFloat(document.getElementById('inputFastChargeExtra').value) || 0;
+      const commUah = getResolvedCommissionUah();
+      const misc = parseFloat(document.getElementById('inputShiftMisc').value) || 0;
+
+      const homeCharge = km * state.settings.chargePerKm;
+      const totalCharge = homeCharge + fastExtra;
+      const net = gross - totalCharge - commUah - misc;
+      const perKm = km > 0 ? net / km : 0;
+
+      document.getElementById('modalAutoChargeBadge').textContent = `= ${fmtMoney(homeCharge)}`;
+
+      const netEl = document.getElementById('previewShiftNet');
+      netEl.textContent = (net >= 0 ? '+' : '') + fmtMoney(net);
+      netEl.className = net >= 0
+        ? 'mono text-2xl font-extrabold text-emerald-400 mt-0.5'
+        : 'mono text-2xl font-extrabold text-rose-400 mt-0.5';
+
+      document.getElementById('previewShiftPerKm').textContent = `${perKm.toFixed(1)} ₴/км`;
+    }
+
+    function handleSaveShift(e) {
+      e.preventDefault();
+      const editId = document.getElementById('editShiftId').value;
+      const shiftObj = {
+        id: editId || 'sh-' + Date.now(),
+        date: document.getElementById('inputShiftDate').value,
+        dayIndex: parseInt(document.getElementById('inputShiftDay').value, 10),
+        gross: parseFloat(document.getElementById('inputShiftGross').value) || 0,
+        km: parseFloat(document.getElementById('inputShiftKm').value) || 0,
+        fastChargeExtra: parseFloat(document.getElementById('inputFastChargeExtra').value) || 0,
+        commissionUah: getResolvedCommissionUah(),
+        misc: parseFloat(document.getElementById('inputShiftMisc').value) || 0,
+        note: document.getElementById('inputShiftNote').value.trim()
+      };
+
+      if (editId) {
+        const idx = state.shifts.findIndex(s => s.id === editId);
+        if (idx !== -1) state.shifts[idx] = shiftObj;
+        showToast('Смена обновлена');
+      } else {
+        state.shifts.push(shiftObj);
+        showToast('Смена добавлена!');
+      }
+
+      saveState();
+      closeShiftModal();
+      renderAll();
+    }
+
+    function deleteShift(id) {
+      state.shifts = state.shifts.filter(s => s.id !== id);
+      saveState();
+      renderAll();
+      showToast('Смена удалена');
+    }
+
+    // --- Settings Modal ---
+    function openSettingsModal() {
+      document.getElementById('settingRent').value = state.settings.weeklyRent;
+      document.getElementById('settingGoal').value = state.settings.personalGoal;
+      document.getElementById('settingChargeRate').value = state.settings.chargePerKm;
+      document.getElementById('settingsModal').classList.add('open');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('open');
+    }
+
+    function handleSaveSettings(e) {
+      e.preventDefault();
+      state.settings.weeklyRent = parseFloat(document.getElementById('settingRent').value) || 0;
+      state.settings.personalGoal = parseFloat(document.getElementById('settingGoal').value) || 0;
+      state.settings.chargePerKm = parseFloat(document.getElementById('settingChargeRate').value) || 0;
+      saveState();
+      closeSettingsModal();
+      renderAll();
+      showToast('Параметры сохранены');
+    }
+
+    function confirmClearCurrentWeek() {
+      state.shifts = [];
+      saveState();
+      closeSettingsModal();
+      renderAll();
+      showToast('Смены текущей недели очищены');
+    }
+
+    // --- Manual Week Close & Archive Detail / Restore ---
+    function manualCloseWeek() {
+      if (state.shifts.length === 0) {
+        showToast('Нет смен для завершения недели');
+        return;
+      }
+
+      const summary = buildArchiveSummary(state.currentWeekStart, state.shifts, state.settings, false);
+      state.archive.unshift(summary);
+      state.shifts = [];
+      saveState();
+      renderAll();
+      switchTab('archive');
+      showToast('Неделя завершена и перенесена в архив!');
+    }
+
+    function openArchiveDetail(archiveId) {
+      const item = state.archive.find(a => a.id === archiveId);
+      if (!item) return;
+
+      document.getElementById('archiveDetailRange').textContent = `${item.weekLabel} (закрыта ${item.closedAt})`;
+      const body = document.getElementById('archiveDetailBody');
+
+      const shiftsHtml = (item.shiftsSnapshot || []).map(s => `
+        <div class="p-2.5 rounded-xl bg-slate-950/70 border border-white/5 flex justify-between text-xs">
+          <span><strong>${DAYS_SHORT[s.dayIndex] || ''}</strong> ${s.date} • ${s.km} км</span>
+          <span class="mono font-bold text-slate-200">Касса ${fmtMoney(s.gross)}</span>
+        </div>
+      `).join('');
+
+      body.innerHTML = `
+        <div class="grid grid-cols-2 gap-2.5 text-xs">
+          <div class="p-3 rounded-xl bg-slate-950/70 border border-white/5">
+            <div class="text-slate-400">Выручка (грязными)</div>
+            <div class="mono text-base font-extrabold text-white mt-0.5">${fmtMoney(item.gross)}</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/70 border border-white/5">
+            <div class="text-slate-400">Чистыми после аренды</div>
+            <div class="mono text-base font-extrabold ${item.netAfterRent >= 0 ? 'text-emerald-400' : 'text-rose-400'} mt-0.5">
+              ${item.netAfterRent >= 0 ? '+' : ''}${fmtMoney(item.netAfterRent)}
+            </div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/70 border border-white/5">
+            <div class="text-slate-400">Аренда / Зарядка</div>
+            <div class="mono font-bold text-slate-200 mt-0.5">-${fmtMoney(item.rent)} / -${fmtMoney(item.totalCharge)}</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/70 border border-white/5">
+            <div class="text-slate-400">Комиссии + мойка / Пробег</div>
+            <div class="mono font-bold text-slate-200 mt-0.5">-${fmtMoney(item.fees)} / ${Math.round(item.km)} км</div>
+          </div>
+        </div>
+
+        <div class="space-y-1.5 max-h-44 overflow-y-auto pt-1">
+          <div class="text-xs font-bold text-slate-400">Смены этой недели (${item.shiftsCount}):</div>
+          ${shiftsHtml || '<div class="text-xs text-slate-500">Детализация смен недоступна</div>'}
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5 pt-2">
+          <button onclick="restoreWeekFromArchive('${item.id}')" class="py-2.5 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 text-xs font-bold">
+            ↩️ Вернуть в текущую
+          </button>
+          <button onclick="deleteArchiveItem('${item.id}')" class="py-2.5 px-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-rose-300 text-xs font-bold">
+            🗑 Удалить из архива
+          </button>
+        </div>
+      `;
+
+      document.getElementById('archiveDetailModal').classList.add('open');
+    }
+
+    function closeArchiveDetailModal() {
+      document.getElementById('archiveDetailModal').classList.remove('open');
+    }
+
+    function restoreWeekFromArchive(archiveId) {
+      const idx = state.archive.findIndex(a => a.id === archiveId);
+      if (idx === -1) return;
+      const item = state.archive[idx];
+
+      if (Array.isArray(item.shiftsSnapshot) && item.shiftsSnapshot.length > 0) {
+        state.shifts = [...state.shifts, ...item.shiftsSnapshot];
+      }
+      state.archive.splice(idx, 1);
+      saveState();
+      closeArchiveDetailModal();
+      renderAll();
+      switchTab('dashboard');
+      showToast('Смены восстановлены в текущую неделю');
+    }
+
+    function deleteArchiveItem(archiveId) {
+      state.archive = state.archive.filter(a => a.id !== archiveId);
+      saveState();
+      closeArchiveDetailModal();
+      renderAll();
+      showToast('Запись удалена из архива');
+    }
+
+    // --- Copy Text Report & JSON Export/Import ---
+    function copyWeeklyReport() {
+      const { weeklyRent, personalGoal, chargePerKm } = state.settings;
+      let gross = 0, km = 0, totalCharge = 0, fees = 0;
+
+      state.shifts.forEach(s => {
+        gross += Number(s.gross) || 0;
+        km += Number(s.km) || 0;
+        totalCharge += (Number(s.km) || 0) * chargePerKm + (Number(s.fastChargeExtra) || 0);
+        fees += (Number(s.commissionUah) || 0) + (Number(s.misc) || 0);
+      });
+
+      const opNet = gross - totalCharge - fees;
+      const finalNet = opNet - weeklyRent;
+      const leftToGoal = Math.max(0, (weeklyRent + personalGoal) - opNet);
+
+      const reportLines = [
+        `⚡ EV Taxi — Отчет за неделю (${formatWeekRangeLabel(state.currentWeekStart)})`,
+        `• Смен: ${state.shifts.length} | Пробег: ${Math.round(km)} км`,
+        `• Касса (грязными): ${fmtMoney(gross)}`,
+        `• Зарядка (${chargePerKm} ₴/км): -${fmtMoney(totalCharge)}`,
+        `• Комиссии и мойка: -${fmtMoney(fees)}`,
+        `• Аренда авто: -${fmtMoney(weeklyRent)}`,
+        `💰 Чистыми на руки: ${finalNet >= 0 ? '+' : ''}${fmtMoney(finalNet)}`,
+        leftToGoal > 0
+          ? `🎯 До закрытия цели (${fmtMoney(personalGoal)}): осталось ${fmtMoney(leftToGoal)}`
+          : `✅ Аренда и недельная цель полностью выполнены!`
+      ].join('\n');
+
+      const ta = document.createElement('textarea');
+      ta.value = reportLines;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Отчет скопирован в буфер обмена!');
+    }
+
+    function exportBackupJSON() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ev_taxi_backup_${toISODate(new Date())}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Бэкап (JSON) скачан');
+    }
+
+    function triggerImportJSON() {
+      document.getElementById('importJsonInput').click();
+    }
+
+    function handleImportJSON(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!parsed || typeof parsed !== 'object' || !parsed.settings || !Array.isArray(parsed.shifts)) {
+            showToast('Ошибка: неверный формат файла');
+            return;
+          }
+          state = {
+            settings: {
+              weeklyRent: Number(parsed.settings.weeklyRent) || 7000,
+              personalGoal: Number(parsed.settings.personalGoal) || 8000,
+              chargePerKm: Number(parsed.settings.chargePerKm) || 2.0
+            },
+            currentWeekStart: parsed.currentWeekStart || getCurrentWeekStartISO(),
+            shifts: parsed.shifts || [],
+            archive: Array.isArray(parsed.archive) ? parsed.archive : [],
+            justRolledOver: false
+          };
+          saveState();
+          renderAll();
+          showToast('Данные успешно восстановлены из бэкапа!');
+        } catch (err) {
+          showToast('Не удалось прочитать JSON-файл');
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    // Initial Render
+    renderAll();
+  </script>
+</body>
+</html>
