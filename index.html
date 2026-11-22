@@ -21,7 +21,6 @@
       --accent: #10b981;
       --accent-2: #34d399;
       --warn: #f59e0b;
-      --danger: #ef4444;
       --radius: 18px;
     }
 
@@ -62,12 +61,17 @@
       width: 44px;
       height: 44px;
       border-radius: 13px;
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(16, 185, 129, 0.08));
+      overflow: hidden;
       border: 1px solid rgba(52, 211, 153, 0.35);
-      display: grid;
-      place-items: center;
-      font-size: 22px;
+      background: var(--surface-2);
       flex-shrink: 0;
+    }
+
+    .brand-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .brand-title {
@@ -415,7 +419,9 @@
   <div class="app">
     <div class="topbar">
       <div class="brand">
-        <div class="brand-icon">⚡</div>
+        <div class="brand-icon">
+          <img src="icon.JPG" alt="EV Taxi" />
+        </div>
         <div>
           <div class="brand-title">EV Taxi Pro</div>
           <div class="brand-sub" id="weekRangeText">Неделя загружается...</div>
@@ -510,6 +516,10 @@
               <option value="6">Суббота</option>
               <option value="0">Воскресенье</option>
             </select>
+          </div>
+          <div class="field full">
+            <label for="cycleStartInput">Точная дата старта текущего 7-дневного цикла</label>
+            <input type="date" id="cycleStartInput" />
           </div>
         </div>
 
@@ -678,13 +688,19 @@
     let state = loadState();
 
     function checkAutoCycleRollover() {
-      const expectedStart = getCurrentCycleStartIso(state.settings.weekStartDay);
-      if (state.cycleStartIso && state.cycleStartIso !== expectedStart) {
+      const startDate = parseIsoDate(state.cycleStartIso);
+      const now = new Date();
+      const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const diffDays = Math.floor((todayMid - startDate) / 86400000);
+      if (diffDays >= 7) {
         if (state.shifts.length > 0) {
           archiveCurrentCycle(true);
+        } else {
+          const nextStart = new Date(startDate);
+          nextStart.setDate(startDate.getDate() + Math.floor(diffDays / 7) * 7);
+          state.cycleStartIso = toLocalDateInput(nextStart);
+          saveState();
         }
-        state.cycleStartIso = expectedStart;
-        saveState();
       }
     }
 
@@ -719,7 +735,7 @@
     }
 
     function fmtMoney(num) {
-      return `${Math.round(Number(num) || 0).toLocaleString("ru-RU")} ₴`;
+      return `${Math.round(Math.max(0, Number(num) || 0)).toLocaleString("ru-RU")} ₴`;
     }
 
     function getWeekTotals() {
@@ -758,7 +774,7 @@
       const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const daysElapsed = Math.min(7, Math.max(1, Math.floor((todayMid - startDate) / 86400000) + 1));
       const daysRemaining = Math.max(1, 8 - daysElapsed);
-      const pacePerDay = remainingTotal / daysRemaining;
+      const pacePerDay = Math.max(0, remainingTotal / daysRemaining);
 
       const remEl = document.getElementById("remainingTotal");
       remEl.textContent = remainingTotal === 0 ? "Цель закрыта!" : fmtMoney(remainingTotal);
@@ -788,6 +804,7 @@
       document.getElementById("goalInput").value = personalGoal;
       document.getElementById("chargeRateInput").value = chargePerKm;
       document.getElementById("weekStartDay").value = String(weekStartDay);
+      document.getElementById("cycleStartInput").value = state.cycleStartIso;
 
       renderChart(startDate, pacePerDay);
       renderShifts();
@@ -930,20 +947,31 @@
       });
     });
 
-    ["rentInput", "goalInput", "chargeRateInput", "weekStartDay"].forEach((id) => {
+    ["rentInput", "goalInput", "chargeRateInput"].forEach((id) => {
       document.getElementById(id).addEventListener("change", () => {
         state.settings.weeklyRent = Math.max(0, Number(document.getElementById("rentInput").value) || 0);
         state.settings.personalGoal = Math.max(0, Number(document.getElementById("goalInput").value) || 0);
         state.settings.chargePerKm = Math.max(0, Number(document.getElementById("chargeRateInput").value) || 0);
-        const prevStartDay = state.settings.weekStartDay;
-        const newStartDay = Number(document.getElementById("weekStartDay").value);
-        state.settings.weekStartDay = newStartDay;
-        if (prevStartDay !== newStartDay && state.shifts.length === 0) {
-          state.cycleStartIso = getCurrentCycleStartIso(newStartDay);
-        }
         saveState();
         render();
       });
+    });
+
+    document.getElementById("weekStartDay").addEventListener("change", () => {
+      const newStartDay = Number(document.getElementById("weekStartDay").value);
+      state.settings.weekStartDay = newStartDay;
+      state.cycleStartIso = getCurrentCycleStartIso(newStartDay);
+      saveState();
+      render();
+    });
+
+    document.getElementById("cycleStartInput").addEventListener("change", () => {
+      const val = document.getElementById("cycleStartInput").value;
+      if (!val) return;
+      state.cycleStartIso = val;
+      state.settings.weekStartDay = parseIsoDate(val).getDay();
+      saveState();
+      render();
     });
 
     ["shiftGross", "shiftKm", "shiftFee", "shiftWash", "shiftExtraCharge"].forEach((id) => {
