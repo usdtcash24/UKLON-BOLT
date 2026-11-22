@@ -6,7 +6,7 @@
   <title>EV Taxi Pro — Учет смен и аренды</title>
   <meta name="theme-color" content="#090d14" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="apple-mobile-web-app-title" content="EV Taxi" />
   <link rel="icon" type="image/jpeg" sizes="512x512" href="icon.JPG" />
   <link rel="apple-touch-icon" sizes="512x512" href="icon.JPG" />
@@ -137,6 +137,13 @@
       margin-bottom: 14px;
     }
 
+    .hero-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
     .hero-label {
       font-size: 12px;
       text-transform: uppercase;
@@ -170,6 +177,13 @@
       border-radius: 10px;
       font-size: 12px;
       color: var(--text);
+    }
+
+    .badge.ok {
+      border-color: rgba(52, 211, 153, 0.35);
+      background: rgba(16, 185, 129, 0.14);
+      color: var(--accent-2);
+      font-weight: 600;
     }
 
     .progress-track {
@@ -278,28 +292,6 @@
       border-color: var(--accent);
     }
 
-    .chips {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 2px;
-    }
-
-    .chip {
-      border: 1px solid var(--border);
-      background: var(--surface-2);
-      color: var(--text);
-      padding: 6px 11px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .chip:hover {
-      border-color: var(--accent);
-    }
-
     .preview-box {
       background: rgba(16, 185, 129, 0.08);
       border: 1px solid rgba(52, 211, 153, 0.25);
@@ -334,6 +326,16 @@
       color: #052016;
     }
 
+    .btn-quick {
+      width: auto;
+      padding: 9px 14px;
+      font-size: 13px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #052016;
+      white-space: nowrap;
+    }
+
     .btn-secondary {
       background: var(--surface-2);
       color: var(--text);
@@ -341,6 +343,17 @@
       padding: 10px 12px;
       font-size: 13px;
       width: auto;
+    }
+
+    .btn-edit {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 7px 10px;
+      font-size: 12px;
+      width: auto;
+      border-radius: 10px;
+      cursor: pointer;
     }
 
     .btn-danger {
@@ -351,6 +364,7 @@
       font-size: 12px;
       width: auto;
       border-radius: 10px;
+      cursor: pointer;
     }
 
     .shift-item {
@@ -385,6 +399,13 @@
       font-weight: 800;
       font-size: 15px;
       color: var(--accent-2);
+    }
+
+    .shift-btns {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      margin-top: 6px;
     }
 
     .empty {
@@ -439,8 +460,13 @@
     <!-- ВКЛАДКА 1: ДАШБОРД -->
     <section id="tab-dashboard">
       <div class="card">
-        <div class="hero-label">Осталось добить чистыми до аренды и цели</div>
-        <div class="hero-value" id="remainingTotal">15 000 ₴</div>
+        <div class="hero-top">
+          <div>
+            <div class="hero-label">Осталось добить чистыми до аренды и цели</div>
+            <div class="hero-value" id="remainingTotal">15 000 ₴</div>
+          </div>
+          <button type="button" class="btn btn-quick" id="quickAddShiftBtn">+ Смена</button>
+        </div>
 
         <div class="badges">
           <div class="badge" id="rentLeftBadge">Аренда: 7 000 ₴</div>
@@ -460,7 +486,7 @@
       <div class="card">
         <div class="grid-2">
           <div class="stat-box">
-            <div class="stat-label">Грязная касса</div>
+            <div class="stat-label">Доход после %</div>
             <div class="stat-num" id="grossSum">0 ₴</div>
           </div>
           <div class="stat-box">
@@ -468,12 +494,12 @@
             <div class="stat-num" id="chargeSum">0 ₴</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">Комиссии и мойка</div>
-            <div class="stat-num" id="feeWashSum">0 ₴</div>
+            <div class="stat-label">Мойка и прочее</div>
+            <div class="stat-num" id="washSum">0 ₴</div>
           </div>
           <div class="stat-box">
             <div class="stat-label">Пробег / Чисто с 1 км</div>
-            <div class="stat-num" id="kmEfficiency">0 км · 0 ₴</div>
+            <div class="stat-num" id="kmEfficiency">0 км · 0.0 ₴/км</div>
           </div>
         </div>
       </div>
@@ -538,15 +564,19 @@
     <!-- ВКЛАДКА 2: СМЕНЫ -->
     <section id="tab-shifts" class="hidden">
       <div class="card">
-        <div class="section-title">Добавить смену</div>
+        <div class="section-title">
+          <span id="formTitle">Добавить смену</span>
+          <button type="button" class="btn-edit hidden" id="cancelEditBtn">Отмена</button>
+        </div>
         <form id="shiftForm">
+          <input type="hidden" id="editShiftId" />
           <div class="form-grid">
             <div class="field">
               <label for="shiftDate">Дата</label>
               <input type="date" id="shiftDate" required />
             </div>
             <div class="field">
-              <label for="shiftGross">Касса за смену (₴)</label>
+              <label for="shiftGross">Доход за смену после % (₴)</label>
               <input type="number" id="shiftGross" placeholder="2800" step="10" min="0" required />
             </div>
             <div class="field">
@@ -554,19 +584,10 @@
               <input type="number" id="shiftKm" placeholder="210" step="1" min="0" required />
             </div>
             <div class="field">
-              <label for="shiftFee">Комиссия агрегаторов/парка (₴)</label>
-              <input type="number" id="shiftFee" placeholder="450" step="5" min="0" value="0" />
-              <div class="chips">
-                <button type="button" class="chip" data-pct="15">15%</button>
-                <button type="button" class="chip" data-pct="18">18%</button>
-                <button type="button" class="chip" data-pct="20">20%</button>
-              </div>
-            </div>
-            <div class="field">
               <label for="shiftWash">Мойка и прочее (₴)</label>
               <input type="number" id="shiftWash" placeholder="150" step="5" min="0" value="0" />
             </div>
-            <div class="field">
+            <div class="field full">
               <label for="shiftExtraCharge">Доп. зарядка на ЭЗС (₴)</label>
               <input type="number" id="shiftExtraCharge" placeholder="0" step="5" min="0" value="0" />
             </div>
@@ -583,11 +604,11 @@
             </div>
             <div>
               <div class="stat-label">Чисто с 1 км</div>
-              <div class="preview-val" id="prevPerKm">0 ₴/км</div>
+              <div class="preview-val" id="prevPerKm">0.0 ₴/км</div>
             </div>
           </div>
 
-          <button type="submit" class="btn btn-primary">Сохранить смену</button>
+          <button type="submit" class="btn btn-primary" id="submitShiftBtn">Сохранить смену</button>
         </form>
       </div>
 
@@ -646,13 +667,12 @@
     function calcShiftMetrics(shift, chargePerKm) {
       const gross = Number(shift.gross) || 0;
       const km = Number(shift.km) || 0;
-      const fee = Number(shift.fee) || 0;
       const wash = Number(shift.wash) || 0;
       const extraCharge = Number(shift.extraCharge) || 0;
       const chargeCost = km * (Number(chargePerKm) || 0) + extraCharge;
-      const net = gross - fee - wash - chargeCost;
+      const net = gross - wash - chargeCost;
       const perKm = km > 0 ? net / km : 0;
-      return { gross, km, fee, wash, extraCharge, chargeCost, net, perKm };
+      return { gross, km, wash, extraCharge, chargeCost, net, perKm };
     }
 
     function loadState() {
@@ -687,6 +707,13 @@
 
     let state = loadState();
 
+    function switchTab(tab) {
+      document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+      document.getElementById("tab-dashboard").classList.toggle("hidden", tab !== "dashboard");
+      document.getElementById("tab-shifts").classList.toggle("hidden", tab !== "shifts");
+      document.getElementById("tab-archive").classList.toggle("hidden", tab !== "archive");
+    }
+
     function checkAutoCycleRollover() {
       const startDate = parseIsoDate(state.cycleStartIso);
       const now = new Date();
@@ -718,7 +745,7 @@
         goal: state.settings.personalGoal,
         gross: totals.gross,
         charge: totals.chargeCost,
-        feesAndWash: totals.fee + totals.wash,
+        wash: totals.wash,
         net: totals.net,
         km: totals.km,
         shiftsCount: state.shifts.length
@@ -735,7 +762,7 @@
     }
 
     function fmtMoney(num) {
-      return `${Math.round(Math.max(0, Number(num) || 0)).toLocaleString("ru-RU")} ₴`;
+      return `${Math.round(Number(num) || 0).toLocaleString("ru-RU")} ₴`;
     }
 
     function getWeekTotals() {
@@ -744,13 +771,12 @@
           const m = calcShiftMetrics(s, state.settings.chargePerKm);
           acc.gross += m.gross;
           acc.km += m.km;
-          acc.fee += m.fee;
           acc.wash += m.wash;
           acc.chargeCost += m.chargeCost;
           acc.net += m.net;
           return acc;
         },
-        { gross: 0, km: 0, fee: 0, wash: 0, chargeCost: 0, net: 0 }
+        { gross: 0, km: 0, wash: 0, chargeCost: 0, net: 0 }
       );
     }
 
@@ -780,9 +806,14 @@
       remEl.textContent = remainingTotal === 0 ? "Цель закрыта!" : fmtMoney(remainingTotal);
       remEl.classList.toggle("done", remainingTotal === 0);
 
-      document.getElementById("rentLeftBadge").textContent =
-        rentLeft === 0 ? "Аренда закрыта ✓" : `До аренды: ${fmtMoney(rentLeft)}`;
-      document.getElementById("goalLeftBadge").textContent = `До личной цели: ${fmtMoney(goalLeft)}`;
+      const rentBadge = document.getElementById("rentLeftBadge");
+      rentBadge.textContent = rentLeft === 0 ? "Аренда отбита ✓" : `До аренды: ${fmtMoney(rentLeft)}`;
+      rentBadge.classList.toggle("ok", rentLeft === 0);
+
+      const goalBadge = document.getElementById("goalLeftBadge");
+      goalBadge.textContent = goalLeft === 0 ? "Личная цель ✓" : `До личной цели: ${fmtMoney(goalLeft)}`;
+      goalBadge.classList.toggle("ok", goalLeft === 0);
+
       document.getElementById("daysLeftBadge").textContent = `Осталось дней: ${daysRemaining}`;
 
       const pct = totalTarget > 0 ? Math.min(100, Math.max(0, (totals.net / totalTarget) * 100)) : 0;
@@ -793,7 +824,7 @@
 
       document.getElementById("grossSum").textContent = fmtMoney(totals.gross);
       document.getElementById("chargeSum").textContent = fmtMoney(totals.chargeCost);
-      document.getElementById("feeWashSum").textContent = fmtMoney(totals.fee + totals.wash);
+      document.getElementById("washSum").textContent = fmtMoney(totals.wash);
       const avgPerKm = totals.km > 0 ? (totals.net / totals.km).toFixed(1) : "0.0";
       document.getElementById("kmEfficiency").textContent = `${Math.round(totals.km)} км · ${avgPerKm} ₴/км`;
 
@@ -877,13 +908,16 @@
           return `
             <div class="shift-item">
               <div>
-                <div class="shift-main">${s.date} · Касса ${fmtMoney(m.gross)}</div>
-                <div class="shift-sub">${Math.round(m.km)} км · Зарядка ${fmtMoney(m.chargeCost)} · Ком.+мойка ${fmtMoney(m.fee + m.wash)}</div>
+                <div class="shift-main">${s.date} · Доход ${fmtMoney(m.gross)}</div>
+                <div class="shift-sub">${Math.round(m.km)} км · Зарядка ${fmtMoney(m.chargeCost)} · Мойка/прочее ${fmtMoney(m.wash)}</div>
               </div>
               <div class="shift-right">
                 <div class="shift-net" style="color:${m.net >= 0 ? "var(--accent-2)" : "#fca5a5"}">${m.net >= 0 ? "+" : ""}${fmtMoney(m.net)}</div>
                 <div class="shift-sub">${m.perKm.toFixed(1)} ₴/км</div>
-                <button class="btn-danger" style="margin-top:6px;" onclick="deleteShift(${s.id})">Удалить</button>
+                <div class="shift-btns">
+                  <button type="button" class="btn-edit" onclick="editShift(${s.id})">Изм.</button>
+                  <button type="button" class="btn-danger" onclick="deleteShift(${s.id})">Удалить</button>
+                </div>
               </div>
             </div>
           `;
@@ -904,7 +938,7 @@
           <div class="shift-item">
             <div>
               <div class="shift-main">${item.rangeLabel} ${item.auto ? "· авто" : ""}</div>
-              <div class="shift-sub">Аренда ${fmtMoney(item.rent)} · Касса ${fmtMoney(item.gross)} · Зарядка ${fmtMoney(item.charge)} · ${Math.round(item.km)} км</div>
+              <div class="shift-sub">Аренда ${fmtMoney(item.rent)} · Доход ${fmtMoney(item.gross)} · Зарядка ${fmtMoney(item.charge)} · ${Math.round(item.km)} км</div>
             </div>
             <div class="shift-right">
               <div class="shift-net">${fmtMoney(item.net)}</div>
@@ -916,8 +950,41 @@
         .join("");
     }
 
+    function resetShiftForm() {
+      document.getElementById("editShiftId").value = "";
+      document.getElementById("formTitle").textContent = "Добавить смену";
+      document.getElementById("submitShiftBtn").textContent = "Сохранить смену";
+      document.getElementById("cancelEditBtn").classList.add("hidden");
+      document.getElementById("shiftDate").value = toLocalDateInput();
+      document.getElementById("shiftGross").value = "";
+      document.getElementById("shiftKm").value = "";
+      document.getElementById("shiftWash").value = "0";
+      document.getElementById("shiftExtraCharge").value = "0";
+      updateShiftPreview();
+    }
+
+    function editShift(id) {
+      const shift = state.shifts.find((s) => s.id === id);
+      if (!shift) return;
+      switchTab("shifts");
+      document.getElementById("editShiftId").value = String(shift.id);
+      document.getElementById("formTitle").textContent = "Редактировать смену";
+      document.getElementById("submitShiftBtn").textContent = "Обновить смену";
+      document.getElementById("cancelEditBtn").classList.remove("hidden");
+      document.getElementById("shiftDate").value = shift.date;
+      document.getElementById("shiftGross").value = shift.gross;
+      document.getElementById("shiftKm").value = shift.km;
+      document.getElementById("shiftWash").value = shift.wash;
+      document.getElementById("shiftExtraCharge").value = shift.extraCharge;
+      updateShiftPreview();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
     function deleteShift(id) {
       state.shifts = state.shifts.filter((s) => s.id !== id);
+      if (document.getElementById("editShiftId").value === String(id)) {
+        resetShiftForm();
+      }
       saveState();
       render();
     }
@@ -926,7 +993,6 @@
       const draft = {
         gross: document.getElementById("shiftGross").value,
         km: document.getElementById("shiftKm").value,
-        fee: document.getElementById("shiftFee").value,
         wash: document.getElementById("shiftWash").value,
         extraCharge: document.getElementById("shiftExtraCharge").value
       };
@@ -937,15 +1003,15 @@
     }
 
     document.querySelectorAll(".tab-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        const tab = btn.dataset.tab;
-        document.getElementById("tab-dashboard").classList.toggle("hidden", tab !== "dashboard");
-        document.getElementById("tab-shifts").classList.toggle("hidden", tab !== "shifts");
-        document.getElementById("tab-archive").classList.toggle("hidden", tab !== "archive");
-      });
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
+
+    document.getElementById("quickAddShiftBtn").addEventListener("click", () => {
+      switchTab("shifts");
+      document.getElementById("shiftGross").focus();
+    });
+
+    document.getElementById("cancelEditBtn").addEventListener("click", resetShiftForm);
 
     ["rentInput", "goalInput", "chargeRateInput"].forEach((id) => {
       document.getElementById(id).addEventListener("change", () => {
@@ -974,38 +1040,31 @@
       render();
     });
 
-    ["shiftGross", "shiftKm", "shiftFee", "shiftWash", "shiftExtraCharge"].forEach((id) => {
+    ["shiftGross", "shiftKm", "shiftWash", "shiftExtraCharge"].forEach((id) => {
       document.getElementById(id).addEventListener("input", updateShiftPreview);
-    });
-
-    document.querySelectorAll(".chip[data-pct]").forEach((chip) => {
-      chip.addEventListener("click", () => {
-        const gross = Number(document.getElementById("shiftGross").value) || 0;
-        const pct = Number(chip.dataset.pct) || 0;
-        document.getElementById("shiftFee").value = Math.round((gross * pct) / 100);
-        updateShiftPreview();
-      });
     });
 
     document.getElementById("shiftDate").value = toLocalDateInput();
 
     document.getElementById("shiftForm").addEventListener("submit", (e) => {
       e.preventDefault();
-      state.shifts.push({
-        id: Date.now(),
+      const editId = document.getElementById("editShiftId").value;
+      const payload = {
         date: document.getElementById("shiftDate").value || toLocalDateInput(),
         gross: Number(document.getElementById("shiftGross").value) || 0,
         km: Number(document.getElementById("shiftKm").value) || 0,
-        fee: Number(document.getElementById("shiftFee").value) || 0,
         wash: Number(document.getElementById("shiftWash").value) || 0,
         extraCharge: Number(document.getElementById("shiftExtraCharge").value) || 0
-      });
+      };
+
+      if (editId) {
+        state.shifts = state.shifts.map((s) => (String(s.id) === editId ? { ...s, ...payload } : s));
+      } else {
+        state.shifts.push({ id: Date.now(), ...payload });
+      }
+
       saveState();
-      document.getElementById("shiftGross").value = "";
-      document.getElementById("shiftKm").value = "";
-      document.getElementById("shiftFee").value = "0";
-      document.getElementById("shiftWash").value = "0";
-      document.getElementById("shiftExtraCharge").value = "0";
+      resetShiftForm();
       render();
     });
 
@@ -1021,8 +1080,8 @@
       const rem = Math.max(0, target - totals.net);
       const text = [
         `EV Taxi Pro (${document.getElementById("weekRangeText").textContent})`,
-        `Касса: ${fmtMoney(totals.gross)} | Пробег: ${Math.round(totals.km)} км`,
-        `Зарядка: ${fmtMoney(totals.chargeCost)} | Ком.+мойка: ${fmtMoney(totals.fee + totals.wash)}`,
+        `Доход после %: ${fmtMoney(totals.gross)} | Пробег: ${Math.round(totals.km)} км`,
+        `Зарядка: ${fmtMoney(totals.chargeCost)} | Мойка/прочее: ${fmtMoney(totals.wash)}`,
         `Чистыми: ${fmtMoney(totals.net)} (Аренда: ${fmtMoney(state.settings.weeklyRent)})`,
         `Осталось до цели: ${fmtMoney(rem)}`
       ].join("\n");
@@ -1047,6 +1106,10 @@
     document.getElementById("importJsonInput").addEventListener("change", (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
+      if (!confirm("Загрузить резервную копию и перезаписать текущие данные?")) {
+        e.target.value = "";
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => {
         try {
